@@ -5,6 +5,10 @@ I am publishing this repo as-is, with the code in its original state from back i
 
 The repo contains a compiler/assembler and a GUI simulator (this one needs Qt).
 
+https://youtu.be/wJXb590IKhM
+
+More info in my Patreon post: https://www.patreon.com/posts/attowpu-cpu-6-68802933
+
 # Overview (from original specification)
 
 AttoWPU is experimental processor architecture from the WPU (Weird Processing Unit) series with accompanying programming languages, which tries different unusual approach the assembly programming and programming in general for various purposes, including education, curiosity, fun and even an artistic intent.
