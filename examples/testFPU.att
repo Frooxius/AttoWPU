@@ -1,0 +1,51 @@
+EXE { CTRL+7(2) ! }
+
+// convert 10 to 10.0
+DATA [10]
+ADDR [06, 8]
+CTRL [0EH, 7]
+EXE
+
+// output 10.0 from the OUT onto the databus
+DATA 1(32)
+ADDR [05, 8]
+CTRL [1, 7]
+EXE
+
+// write it to the TEMP
+ADDR [02, 8]
+CTRL [3, 7]
+EXE
+
+// divide it, producing 1.0
+ADDR [6, 8]
+CTRL [04, 7]
+EXE
+// divide twice again, producing 0.01
+//EXE
+//EXE
+
+// write the 0.01 to the TEMP
+ADDR [02, 8]
+CTRL [3, 7]
+EXE
+
+// start adding it to itself
+ADDR [06, 8]
+CTRL [01, 7]
+AJMP [loop, 15]
+
+loop:
+ADDR [06, 8]
+CTRL [01, 7]
+EXE
+CTRL [1, 7]
+EXE
+
+ADDR [0CH, 8]
+CTRL [03, 7]
+EXE
+
+AJMP+15(2) !
+
+

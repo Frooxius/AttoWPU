@@ -1,0 +1,92 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="DataIO">
+      <UniqueIdentifier>{6ce84e42-ffe3-4ce7-b2e1-0cfd390c9bcb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DataIO\Header files">
+      <UniqueIdentifier>{c164a042-7800-4947-b64b-6ac9dc8d1414}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DataIO\Source files">
+      <UniqueIdentifier>{bb296175-e03c-4ee3-8c79-74f7336e4a53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Messaging">
+      <UniqueIdentifier>{c6084efd-368c-49bb-915a-6827a2836ee1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dummy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Values.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioBuffer.cpp">
+      <Filter>DataIO\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Dumpable.cpp">
+      <Filter>DataIO\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="UniMemory.cpp">
+      <Filter>DataIO\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="UniMemoryRAM.cpp">
+      <Filter>DataIO\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Message.cpp">
+      <Filter>Messaging</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="csettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Values.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioBuffer.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Bits.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="DataRead.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="DataWrite.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Dumpable.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="UniMemory.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="UniMemoryDummy.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="UniMemoryRAM.h">
+      <Filter>DataIO\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Message.h">
+      <Filter>Messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageCout.h">
+      <Filter>Messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageDummy.h">
+      <Filter>Messaging</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,34 @@
+// first write 1 to the TEMP
+ADDR [02H, 8]
+DATA [73]
+CTRL [03, 7]
+CTRL+7(2) !
+
+// then write 0 to DATA so 49 is produced after addition
+DATA [0]
+
+// add these two together
+ADDR [04, 8]
+CTRL [01, 7]
+CTRL+7(2) !
+
+// prepare data for output and output value from the OUT
+DATA 1(32)
+ADDR [05, 8]
+CTRL [01, 7]
+CTRL+7(2) !
+
+// now start loop - writing data to the text display and increasing the value by one
+AJMP [LOOP, 15]
+LOOP:
+ADDR [0CH, 8]
+CTRL [03, 7]
+CTRL+7(2) !
+
+ADDR [04, 8]
+CTRL [2, 7]
+CTRL+7(2) !
+CTRL [15H, 7]
+CTRL+7(2) !
+
+AJMP+15(2) !

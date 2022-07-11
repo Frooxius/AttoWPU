@@ -1,0 +1,20 @@
+EXE { CTRL+7(2) ! }
+
+AJMP [LOOP, 15]
+
+ADDR [0CH, 8]
+
+LOOP:
+
+DATA+8 1(24)
+CTRL [03, 7]
+CTRL+7(256) !
+
+DATA+8 0(24)
+CTRL [05, 7]
+CTRL+7(256) !
+CTRL [03, 7]
+CTRL+7(256) !
+
+AJMP+15(2) !
+

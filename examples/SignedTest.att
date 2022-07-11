@@ -1,0 +1,16 @@
+DATA [4]
+
+WriteTEMP
+{
+	ADDR [02, 8]
+	CTRL [03, 7]
+	CTRL+7(2) !
+}
+
+WriteTEMP
+
+DATA [2]
+
+ADDR [04, 8] CTRL [0BH, 7] CTRL+7(2) !
+ADDR [05, 8] CTRL [01, 7] CTRL+7(2) !
+DATA 1(32)

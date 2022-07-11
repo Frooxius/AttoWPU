@@ -1,0 +1,77 @@
+/* Hello World in AttoASM by Frooxius, slightly optimized, 5/20/2011, www.attowpu.solirax.org */
+
+EXE { CTRL+7(2) ! }		// execute command
+
+ADDR+4 [01H, 4]		// attocode memory
+CTRL+3 [01H, 4]		// write new address
+DATA [TEXT]
+EXE
+
+DATA+24 1(8)	// prepare for data exchange
+
+LOOP:
+
+// cleanup after jump
+CTRL+7 0
+ADDR+4 [05H, 4]		// out register
+CTRL+3 [00H, 4]		// stop the output
+EXE
+
+// Write the character
+ADDR+4 [01H, 4]		// attocode memory
+CTRL+3 [03H, 4]		// output addressed data
+EXE
+
+ADDR+4 [0BH, 4]		// address text display
+CTRL+3 [03H, 4]		// write character and increment address
+EXE
+
+// Maintain the loop if end of string wasn't reached yet
+
+ADDR+4 [01H, 4]		// address attocode memory
+CTRL+3 [07H, 4]		// move to the next element
+EXE
+
+ADDR+4 [02H, 4]		// address TEMP register
+CTRL+3 [03H, 4]		// write value without mask from the databus
+EXE
+
+ADDR+4 [01H, 4]		// attocode memory
+CTRL+3 [00H, 4]		// stop data output
+EXE
+
+ADDR+4 [04H, 4]		// address ALU
+CTRL [29H, 7]		// ZeroSet
+DATA [ENDLOOP]
+EXE
+CTRL [2AH, 7]		// NotZeroSet
+DATA [LOOP]
+EXE
+
+CTRL 000	// clear three MSB
+
+DATA+24 1(8)	// prepare for data exchange
+
+ADDR+4 [05H, 4]		// OUT register
+CTRL+3 [01H, 4]		// output its contents
+EXE
+
+ADDR+4 [00H, 4]	// aPC
+CTRL+3 [01H, 4]	// write new address from the databus
+EXE
+
+ENDLOOP:
+
+// cleanup after jump
+CTRL+7 0
+ADDR+4 [05H, 4]		// out register
+CTRL+3 [00H, 4]		// stop the output
+EXE
+
+// infinite loop to stop the program from executing following (nonexistent - gibberish) code
+AJMP [INFLOOP, 15]
+INFLOOP:
+AJMP+15(2) !
+
+text:
+"Hello world!" $00

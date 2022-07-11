@@ -1,0 +1,8 @@
+ADDR [03, 8]
+DATA [468687]
+CTRL [0EH, 7]
+CTRL+7(2) !
+DATA 1(32)
+CTRL [0DH, 7]
+CTRL+7(2) !
+

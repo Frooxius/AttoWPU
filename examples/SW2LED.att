@@ -1,0 +1,47 @@
+DATA 1(32)		// prepare data for data trade between units
+
+AJMP [LOOP, 15]
+
+LOOP:
+
+// read the value onto the databus
+ADDR [0DH, 8]	// address input controller
+CTRL [02, 7]
+CTRL+7(2) !		// read the value from switch row 0
+
+// write it to LED rows
+ADDR [0AH, 8]	// address LED controller
+CTRL [0, 7]		
+CTRL+7(2) !		// write to LED row 0
+
+// read the value onto the databus
+ADDR [0DH, 8]	// address input controller
+CTRL [03, 7]
+CTRL+7(2) !		// read the value from switch row 1
+
+// write it to LED rows
+ADDR [0AH, 8]	// address LED controller
+CTRL [1, 7]		
+CTRL+7(2) !		// write to LED row 1
+
+// read the value onto the databus
+ADDR [0DH, 8]	// address input controller
+CTRL [04, 7]
+CTRL+7(2) !		// read the value from switch row 2
+
+// write it to LED rows
+ADDR [0AH, 8]	// address LED controller
+CTRL [2, 7]		
+CTRL+7(2) !		// write to LED row 2
+
+// read the value onto the databus
+ADDR [0DH, 8]	// address input controller
+CTRL [05, 7]
+CTRL+7(2) !		// read the value from switch row 3
+
+// write it to LED rows
+ADDR [0AH, 8]	// address LED controller
+CTRL [3, 7]		
+CTRL+7(2) !		// write to LED row 3
+
+AJMP+15(2) !

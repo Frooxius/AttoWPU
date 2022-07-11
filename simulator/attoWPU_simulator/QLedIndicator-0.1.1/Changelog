@@ -1,0 +1,4 @@
+19-01-2010
+    Portability fix: const static initialization for Visual Studio 2005
+15-01-2010
+    Initial release.

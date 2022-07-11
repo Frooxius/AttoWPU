@@ -1,0 +1,110 @@
+// Register Memory Allocation
+PADDLE0_Y { 0 }
+PADDLE1_Y { 1 }
+BALL_X { 2 }
+BALL_Y { 3 }
+SCORE0 { 4 }
+SCORE1 { 5 }
+
+// For passing an argument to a symbol
+ARG { 0 }
+
+// Auxiliary
+
+EXE { CTRL+7(2) ! }
+WriteTEMP
+{
+	ADDR [02, 8]
+	CTRL [03, 7]
+	EXE
+}
+
+// Output value from the Register memory at address given by ARG
+OutputRegister
+{
+	ADDR [03, 8]
+	DATA [ARG]
+	CTRL [01, 7]	// write address
+	EXE
+	CTRL [0DH, 7]	// output data
+	EXE
+	DATA 1(32)
+}
+
+// **** KEYBOARD READ ****
+
+ReadKey
+{
+	DATA 1(32)	// prepare for data exchange
+	ADDR [0DH, 8]	// address the input controller
+	CTRL [08, 7]	// read the key
+	EXE
+}
+
+StopKey
+{
+	ADDR [0DH, 8]	// address the input controller
+	CTRL [0, 7]	// read the key
+	EXE
+}
+
+ReadKeys
+{
+	// Read the W key
+	ReadKey
+	WriteTEMP
+	StopKey
+	
+	DATA [22] // code of the W key
+	// compare them using the ALU
+	ADDR [04, 8]
+	CTRL [28H, 7] // test for equality
+	EXE
+	
+	// output result from the OUT
+	ADDR [05, 8]
+	CTRL [01, 7]
+	EXE
+	DATA 1(32)
+	WriteTEMP	// and store it in the temp register
+	ADDR [05, 8]
+	CTRL [0, 7]
+	EXE // stop OUT output
+	
+	// load the value from the Register memory
+	
+	ARG {! PADDLE0_Y }	
+	OutputRegister
+	ADDR [0AH, 8]
+	CTRL [0, 7]
+	EXE
+	
+	// TEMP + DATA = new Y position
+	ADDR [04, 8]
+	CTRL [01, 7]
+	EXE
+	
+	// new position is calculated, now store the value back
+	//DATA 1(32)
+	ADDR [03, 8]
+	CTRL [0, 7]
+	EXE // stop register memory outputting
+	ADDR [05, 8]
+	CTRL [1, 7]
+	EXE // output calculated value
+	ADDR [03, 8] // register memory
+	CTRL [0EH, 7]
+	EXE // modified value is now written back
+	
+	// cleanup
+	ADDR [05, 8]
+	CTRL [0, 7]
+	EXE // stop OUT output
+}
+
+AJMP [LOOP, 15]
+
+LOOP:
+ReadKeys
+
+AJMP+15(2) !

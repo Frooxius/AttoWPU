@@ -1,0 +1,1993 @@
+#pragma once
+#include <string>
+#include <stack>
+#include <map>
+#include <vector>
+#include "AttocodeWrite.h"
+#include "Exception.h"
+#include "Source.h"
+#include "SourceRead.h"
+#include "SourceString.h"
+#include "SourceChar.h"
+#include "SourceFile.h"
+#include "AttoASMHeader.h"
+
+/*
+	This class specifies the attoasm object, which controls whole assembly process.
+*/
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class AttoASM;	// prototype
+
+		struct ProcessingPhase
+		{
+			void (AttoASM::*func)();	// processing function
+			int phase;	// phase of the current funciton
+
+			ProcessingPhase(void (AttoASM::*f)())
+			{
+				phase = 0;
+				func = f;
+			}
+		};
+
+		class AttoASM
+		{
+		private:
+			Source *src;		// stack holding the source codes
+			AttocodeWrite *trg;	// target for the assembled attocode
+
+			std::stack<ProcessingPhase> processing;	// class containing processing functions
+			std::map<std::string, std::string> symbols;	// contains all symbols
+			std::stack<std::string *> labels;	// contains pieces of code containing labels, for assembling them after everything else is assembled
+			std::vector<long int> arg;	// holds return values from various functions
+
+			char schar;				// currently loaded character from the source
+			std::vector<std::string> sbuffer; // buffer for various purposes
+			std::string 	statement;	// buffer for current statement
+
+			// Utility functions
+			long int Number(std::string num);	// convert string to a number
+			char LoadChar(bool preserveCase = false);	// load next character
+
+			// Working with symbols
+			bool unknownLabel;	// determines if unknown label was encountered in the statement
+			int statementAddress;	// starting address of the current statement
+			std::string *GetSymbol(std::string *name);				// return symbol value
+			void SetSymbol(std::string *name, std::string *value);	// create new symbol
+
+			void AssemblyCycle();	// a single assembly cycle
+
+		public:
+			AttoASM(SourceRead *initial, AttocodeWrite *target);	// initialize assembly process
+
+			void Assembly();			// assembly source completely in one call
+			bool Assembly(int cycles);	// process a limited number of cycles of the assembly process in one call (several calls are required to complete the process)
+			bool Done();	// returns whether the process is finished or not
+
+			/*	The following is list of processing functions, that process the
+				input source code and convert it to a machine code or a number,
+				that's used by different function.
+			*/
+		private:
+			void ProcessBase();			// the base of processing
+			void ProcessExpression();	// process an expression
+			void ProcessInsGroup();		// process an instruction group
+			void ProcessInsRepeat();	// process attoinstructions
+			void ProcessGroupRepeat();	// process instruction group repeats
+			void ProcessNumber();		// decode a number
+			void ProcessSymbol();		// decode a symbol
+			void ProcessComment();		// process a comment
+			void ProcessNumToIns();		// process number to attoinstruction
+			void ProcessHexDataChunk();	// process a data chunk in hexadecimal
+			void ProcessStrDataChunk();	// process a data chunk as string
+			void ProcessOrg();			// process data organization
+			void ProcessSymbolDef();	// process a symbol definition
+			void ProcessInclude();		// process file include (both text and binary)
+		};
+	}
+}#pragma once
+
+/*	This specifies header that will be added automatically on the top of
+	any code, containing declarations of built in symbols */
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		extern char *attoASMHeader;
+	}
+}
+	#pragma once
+#include "Values.h"
+
+/*
+	This abstract class is used to write attoinstruction opcodes to a unspecfied memory.
+	The storage is implemented by derived classes.
+*/
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		typedef unsigned char byte;
+		enum AttoInstruction {
+			attoFall, attoRise, attoNot, attoHalt };
+
+		class AttocodeWrite
+		{
+		private:
+			byte Opcode(AttoInstruction i, int bit);	// create an attoinstruction
+
+		protected:
+			int address,	// current address
+				topaddress,	// maximum address (in case previous address was addressed)
+				size;		// maximum size
+			virtual void __write(byte data) = 0;		// write data sequentially
+			virtual void __address(int addr) = 0;	// seek different address
+
+		public:
+			AttocodeWrite();
+
+			void Write(byte data);	// write raw data
+			void Write(AttoInstruction i, int bit);
+			void SetAddress(int addr);
+			int GetAddress() { return address; }
+
+			int GetSize();
+		};
+	}
+}#pragma once
+#include "AttocodeWrite.h"
+
+/*
+	This class stores the attocode in a memory.
+*/
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class AttocodeWriteMem : public AttocodeWrite
+		{
+		private:
+			byte *mem;		// pointer to a memory
+			bool free_mem;	// determines whether to free memory after object is destroyed or not
+
+		protected:
+			virtual void __write(byte data);
+			virtual void __address(int addr);
+
+		public:
+			AttocodeWriteMem(int _size);
+			AttocodeWriteMem(int _size, byte *memory);
+			~AttocodeWriteMem();
+
+			void SaveToFile(char *filename);	// save everything to a file
+			byte *RetrieveData();				// get pointer to the data, this will also prevent them from being freed!
+		};
+	}
+}#pragma once 
+#include <string>
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class Exception
+		{
+		private:
+			std::string __msg;	// string holding the message
+			bool intern;	// determines if the exception is internal or not
+
+		public:
+			Exception(const char *msg, bool intern = false)
+			{
+				if(intern)
+					__msg = "INTERNAL PROGRAM ERROR: ";
+				__msg += msg;
+			}
+
+			std::string GetMessage() { return __msg; }
+
+			bool Internal() { return intern; }
+		};
+	}
+}#pragma once
+#include "SourceRead.h"
+#include <string>
+#include <stack>
+
+/*
+	Source objects holds one or more objects derived from SourceRead
+	and allows reading single characters from them as well as whole
+	strings. Objects are stored on a stack and when a character is
+	read, it's always from the topmost object. When it's empty,
+	then it's automatically popped out.
+*/
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class Source
+		{
+		private:
+			std::stack<SourceRead *> sources;	// stack for holding the sources			
+			char __readTo(char *delim);		// internal function, which reads a single character if it's not
+			bool endchar;	// if endchar was sent yet or not (it's sent after last sourcread is popped)
+
+		public:
+			Source();		// constructor creating an empty Source object
+			Source(SourceRead *src);	// constructor creating Source with an initial SourceRead object
+
+			void Push(SourceRead *src);	// pushes a new source object on the top
+			char Read();				// reads a single character
+			void ReadTo(char *buf, char *delim, int max = 255);	// read to a buffer until delimiter character is met
+			void ReadTo(std::string *buf, char *delim);
+
+			bool Empty();	// determines if it's empty (no SourceReads left on the stack)
+			int Sources() { return sources.size(); }	// returns number of sources on the stack
+		};
+	}
+}#pragma once
+#include "SourceRead.h"
+#include <string>
+
+// This class allows reading a source code from a string in the memory
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class SourceChar : public SourceRead
+		{
+		private:
+			char _ch;	// the character
+			bool empty;	// determines if it has been read or not
+
+		protected:
+			virtual char __read();
+
+		public:
+			virtual bool Empty();
+			SourceChar(char ch);
+		};
+	}
+}#pragma once
+#include "SourceRead.h"
+#include <fstream>
+
+//	This class allows reading a source code from a text file on the disk
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class SourceFile : public SourceRead
+		{
+		private:
+			std::ifstream *file;
+			char nextch;
+
+		protected:
+			virtual char __read();		// reading a single character
+
+		public:
+			virtual bool Empty();
+			SourceFile(const char *filename);	// constructor, which is also used to specify a file
+			~SourceFile();	// destructor used to close the file stream
+		};
+	}
+}#pragma once
+#include <string>
+/*
+	SourceRead is an abstract class, that is used to read a single character or a whole
+	keyword from an arbitrary source. The source itself is implemented by derived classes,
+	and it's usually a text file or a string.
+*/
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class SourceRead
+		{
+		private:
+
+		protected:
+			virtual char __read() = 0;		// internal function for reading a single character
+
+		public:
+			char Read();										// read a single character
+			virtual bool Empty() = 0;	// returns true if the source is empty (everything is read)
+			virtual ~SourceRead() { };
+		};
+	}
+}#pragma once
+#include "SourceRead.h"
+#include <string>
+
+// This class allows reading a source code from a string in the memory
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		class SourceString : public SourceRead
+		{
+		private:
+			std::string::iterator stlstr, stlend; // iterator to a STL string
+			std::string *_free;	// if set, it will be freed
+			char *cstr;			// pointer to a C string
+			bool cstring;		// determines whether to use C string or STL pointer
+
+		protected:
+			virtual char __read();
+
+		public:
+			virtual bool Empty();
+			SourceString(char *str);
+			SourceString(std::string *str, bool free = false);
+			~SourceString();
+		};
+	}
+}#pragma once
+
+template <class X> X Min(X a, X B)
+{
+	return a>b?b:a;
+}
+
+template <class X> X Max(X a, X B)
+{
+	return a>b?a:b;
+}
+
+template <class X> X Limit(X val, X min, X max)
+{
+	return (val>min?val:min)<max?val:max;
+}#include "Attoasm.h"
+#include <cctype>
+#include <cstring>
+#include <cmath>
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		// Constructor - initializes the assembly process
+		AttoASM::AttoASM(SourceRead *initial, AttocodeWrite *target)
+		{
+			src = new Source(initial);	// create the source stack with initial source
+			src->Push(new SourceString(attoASMHeader));	// push the header souce, which will be processed first
+
+			trg = target;
+
+			// Push the base processing function
+			processing.push(ProcessingPhase(&AttoASM::ProcessBase));
+
+			// Push empty statement, to indicate, that labels weren't processed yet
+			labels.push(new std::string(" "));
+
+			// Create zero symbol, which is returned for unknown labels
+			std::string *zero = new std::string("0");
+			SetSymbol(zero, zero);
+			delete zero;
+			unknownLabel = false;
+
+			// Load first character
+			LoadChar();
+		}
+
+		bool AttoASM::Done()
+		{
+			return processing.empty();
+		}
+
+		void AttoASM::Assembly()
+		{
+			while(!Done())
+				AssemblyCycle();
+		}
+
+		bool AttoASM::Assembly(int cycles)
+		{
+			while(!Done() && cycles--)
+				AssemblyCycle();
+			return Done();
+		}
+
+		void AttoASM::AssemblyCycle()
+		{
+			(this->*processing.top().func)();
+		}
+
+		// Utility functions
+
+		long int AttoASM::Number(std::string num)
+		{
+			int digits, base, length = num.length();
+			long int number = 0;	// must be stored as long, so it can be possibly used in expressions
+			unsigned int overflow = 0;	// used to detect unsigned overflow
+			bool minus = false;
+			
+			if(num.length() == 0)
+				throw Exception("Trying to process an empty number.", true);
+
+			// detect minus sign
+			if(num[0] == '-')
+				minus = true;
+
+			//if the last character is a letter determine base
+			switch(std::tolower(num[length-1]))
+			{
+			case 'h':
+				base = 16;
+				digits = length-1;
+				break;
+			case 'o':
+				base = 8;
+				digits = length-1;
+				break;
+			case 'b':
+				base = 2;
+				digits = length-1;
+				break;
+			case 'd':
+				base = 10;
+				digits = length-1;
+				break;
+			default:
+				base = 10;
+				digits = length;
+			}
+
+			if(minus)
+				digits--;	//there's one less digit if the first character is a minus
+
+			// detect zeroes in front that will be omitted
+			int zeroes = minus;
+			for(; zeroes < length-1 && num[zeroes] == '0'; zeroes++);
+			zeroes -= minus;
+
+			// create the number
+			int multiplier = minus?-1:1;
+			for(; digits > zeroes; digits--, multiplier *= base)
+			{
+				char dig = std::tolower(num[digits+minus-1]);
+				int n;
+				
+				if(dig >= '0' && dig <= '9')
+					n = dig-'0';
+				else if(dig >= 'a' && dig <= 'f')
+					n = 10+dig-'a';
+				else
+					throw Exception("Unexpected symbol in a number.");
+
+				if(n > base-1)
+					throw Exception("Digit larger than used numeric base.");
+
+				number += n*multiplier;
+
+				// Detect overflow
+				if((minus && (int)number > 0) || (!minus && (unsigned int)number < overflow) || multiplier == 0)
+					throw Exception("Number exceeds range of a 32bit integer.");
+				overflow = number;
+			}
+
+			return number;
+		}
+
+		char AttoASM::LoadChar(bool preserveCase)
+		{
+			if(preserveCase)
+				schar = src->Read();
+			else
+				schar = std::tolower(src->Read());
+			statement += schar;
+			return schar;
+		}
+
+		std::string *AttoASM::GetSymbol(std::string *name)
+		{
+			std::map<std::string, std::string>::iterator i = symbols.find(*name);
+			if(i == symbols.end())
+			{
+				if(labels.empty())
+					throw Exception("Unefined label/symbol.");
+				// if it's not defined yet, consider it a label
+				unknownLabel = true;
+				return &symbols["0"];
+			}
+			else
+				return &((*i).second);	// return the symbol value
+		}
+
+		void AttoASM::SetSymbol(std::string *name, std::string *value)
+		{
+			if(symbols.find(*name) != symbols.end())
+				throw Exception("Symbol redefinition.");
+
+			// Create the symbol
+			symbols.insert(std::pair<std::string, std::string>(*name, *value + " "));
+		}
+
+		/*	****************************************
+					PROCESSING FUCTIONS
+		*******************************************/
+
+		void AttoASM::ProcessBase()
+		{
+			// Detect unknown label
+			if(unknownLabel)
+			{
+				char numbuf[12];
+				std::string *stat = new std::string("<");
+
+				// first write organization label with the start of the statement with unknown label
+				_itoa_s(statementAddress, numbuf, 12, 10);
+				*stat += numbuf;
+				*stat += "> ";
+				// then add the statement itself
+				*stat += statement;
+				// don't forget space on the end to terminate it properly
+				*stat += ' ';
+				// push it into unknown labels stack
+				labels.push(stat);
+			}
+
+			statement.clear();	// clear statement (if there's any left)
+			statementAddress = trg->GetAddress();
+
+			// If processing is finished
+			if(src->Empty())
+			{
+				if(labels.empty())
+				{
+					// end the assembly process
+					processing.pop();
+					return;
+				}
+				else
+				{
+					// initiate unknown labels processing
+					while(!labels.empty())
+					{
+						src->Push(new SourceString(labels.top(), true));
+						labels.pop();
+					}
+
+					// load first character so it's immediatelly processed
+					LoadChar();
+				}
+			}
+
+			if(schar == ' ' || schar == '\n' || schar == '\r' || schar == '\f' || schar == '\t')
+			{
+				LoadChar();
+				return;
+			}
+
+			if((schar >= '0' && schar <= '9') || schar == '-')
+			{
+				processing.push(ProcessingPhase(&AttoASM::ProcessInsGroup));
+				return;
+			}
+
+			if(schar == '/')
+			{
+				processing.push(ProcessingPhase(&AttoASM::ProcessComment));
+				return;
+			}
+
+			if(schar == '$')
+			{
+				processing.push(ProcessingPhase(&AttoASM::ProcessHexDataChunk));
+				return;
+			}
+
+			if(schar == '"')
+			{
+				processing.push(ProcessingPhase(&AttoASM::ProcessStrDataChunk));
+				return;
+			}
+
+			if(schar == '<')
+			{
+				processing.push(ProcessingPhase(&AttoASM::ProcessOrg));
+				return;
+			}
+
+			if( (schar >= 'a' && schar <= 'z') || schar == '_')
+			{
+				processing.push(ProcessingPhase(&AttoASM::ProcessSymbol));
+				return;
+			}
+
+			throw Exception("Unexpected symbol.");
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessExpression()
+		{
+			switch(processing.top().phase)
+			{
+			case 0:
+				arg.push_back(0);	// start with a zero
+				processing.top().phase = 2;	// move to the adding phase (loading numbers)
+				// load the first number
+				processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+				break;
+			// process more numbers
+			case 1:
+				switch(schar)
+				{
+				// skip spaces
+				case ' ':
+					LoadChar();
+					break;
+				case '+':
+					LoadChar();		// the + character needs to be omitted
+					processing.top().phase++; // move to the next phase beforehand, where the value is added to the previous one
+					processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+					break;
+				case '-':
+					processing.top().phase++; // move to the next phase beforehand, where the value is added to the previous one
+					processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+					break;
+				// anything else ends the expression
+				default:
+					processing.pop(); // return back
+				}
+				break;
+			// add the new number to the previous one
+			case 2:
+				arg[arg.size()-2] += arg[arg.size()-1];
+				arg.pop_back();
+				processing.top().phase--; // return to the previous phase
+				break;
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessInsGroup()
+		{
+			char numbuf[12];	// for converting int to string
+			switch(processing.top().phase)
+			{
+			// first phase decodes the start bit
+			case 0:
+				processing.top().phase++;
+				sbuffer.push_back(std::string());	// prepare the sbuffer for storing the instruction group for repeats
+				// this will decode the start bit and push it on the argument stack
+				processing.push(ProcessingPhase(&AttoASM::ProcessExpression));
+				break;
+			// second phase stores the start bit in the sbuffer
+			case 1:
+				_itoa_s(arg[arg.size()-1], numbuf, 12, 10); // convert the number to a string
+				sbuffer[sbuffer.size()-1] += numbuf;
+				sbuffer[sbuffer.size()-1] += ' ';
+				processing.top().phase++; // ensure that next time this phase won't be executed
+
+				/*	the lack of break statement is delibrate, next phase should be executed
+					immediatelly too, without having to wait for the next cycle */
+
+			// third phase looks for a number of repeats
+			case 2:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				// begining of the repeats specificaiton is found
+				case '(':
+					LoadChar();
+					processing.top().phase++; // move to the next phase (which gets rid of spaces after repeats specification)
+					processing.push(ProcessingPhase(&AttoASM::ProcessGroupRepeat));
+					break;
+				// if start of an instruction is found or technically anything else, illegal characters are handled in the next phase (no repeats are specified)
+				default:
+					processing.top().phase++; // move to the next
+					arg.push_back(1);	// default number of repeats is one, when no repeats are specified
+					break;
+				}
+				break;
+
+			// get rid of additional spaces and detect symbol
+			case 3:
+				if(schar == ' ')
+					LoadChar();
+				else
+				{
+					processing.top().phase++; // start the actuall instruction processing
+					// detect symbol
+					if((schar >= 'a' && schar <= 'z') || schar == '_')
+						processing.push(ProcessingPhase(&AttoASM::ProcessSymbol));
+				}
+				break;
+
+			/*	in fifth phase, instructions themselves are processed
+				arg now vector holds crutial values prepared in previous phases:
+					arg[size-2] - current bus bit
+					arg[size-1] - number of group repeats			*/
+			case 4:
+				switch(schar)
+				{
+				case '0':
+					trg->Write(attoFall, arg[arg.size()-2]++);
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+					break;
+				case '1':
+					trg->Write(attoRise, arg[arg.size()-2]++);
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+					break;
+				case '!':
+					trg->Write(attoNot, arg[arg.size()-2]++);
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+					break;
+				case '|':
+					trg->Write(attoHalt, arg[arg.size()-2]++);
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+					break;
+				case '-':
+					arg[arg.size()-2]++;
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+					break;
+
+				// start of the instruction repeats specification
+				case '(':
+					processing.push(ProcessingPhase(&AttoASM::ProcessInsRepeat));
+					LoadChar();
+					break;
+
+				// number to instruction conversion
+				case '[':
+					processing.push(ProcessingPhase(&AttoASM::ProcessNumToIns));
+					break;
+
+				// end of the instructions (and whole statement)
+				case ' ':
+				case '\n':
+				case '\r':
+				case '\f':
+				case '\t':
+					// first, push appropriate number of group repeats, they are processed as separate statements
+					sbuffer[sbuffer.size()-1] += ' ';	// add space to terminate the statement in the sbuffer
+					while(--arg[arg.size()-1])
+						src->Push(new SourceString(new std::string(sbuffer[sbuffer.size()-1]), true));
+
+					// clean up
+					arg.pop_back();		// repeats
+					arg.pop_back();		// bus bit
+					processing.pop();	// return to process base
+					sbuffer.pop_back();
+
+					break;
+
+				// illegal instruction symbol
+				default:
+					throw Exception("Illegal instruction symbol.");
+				} // END switch(schar)
+				break;
+			} // END switch(processing.top().phase)
+		} // END void AttoASM::ProcessInsGroup()
+
+		// -------------------------------------
+		void AttoASM::ProcessInsRepeat()
+		{
+			std::string *ins;  // for storing repeated instruction
+
+			switch(processing.top().phase)
+			{
+			case 0:
+				// first load the number
+				processing.top().phase++;
+				processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+				break;
+			case 1:
+				// check if there's ) character, which terminates repeat statement
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+
+				case ')':
+					// push appropriate number of attoinstructions to the source stack
+					ins = new std::string();
+					while(arg[arg.size()-1]--)
+						*ins += sbuffer[sbuffer.size()-1][sbuffer[sbuffer.size()-1].length()-1];
+					// push them to the source stack
+					src->Push(new SourceString(ins, true));
+
+					// clean up
+					arg.pop_back();
+					processing.pop(); // return to the previous
+					LoadChar(); // remove ')' from the source
+
+					break;
+
+				// syntax error
+				default:
+					throw Exception("Unexpected symbol. Right parenthesis ')' expected.");
+				} // END switch(schar)
+				break;
+			} // END switch(processing.top().phase)
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessNumber()
+		{
+			switch(processing.top().phase)
+			{
+			case 0:
+				sbuffer.push_back(std::string()); // prepare the buffer for numbers
+				processing.top().phase++;
+				// lack of break is deliberate, so first number character is processed too in this step
+			// in second phase, skip all spaces before the number
+			case 1:
+				// detect minus sign or a symbol
+				if((schar >= 'a' && schar <= 'z') || schar == '_')
+				{
+					processing.push(ProcessingPhase(&AttoASM::ProcessSymbol));
+					break;
+				}
+
+				switch(schar)
+				{
+				case '-':
+					// it can also detect several consequent minuses
+					if(sbuffer[sbuffer.size()-1].empty())
+						sbuffer[sbuffer.size()-1] += '-';
+					else
+						sbuffer[sbuffer.size()-1].clear();
+					// lack of break is deliberate so next character is loaded
+				case ' ':
+					LoadChar();
+					break;
+				default:
+					processing.top().phase++; // move to the next phase
+				}
+				break;
+			case 2:
+				// load numbers into the sbuffer
+				if(std::isalpha(schar) || std::isdigit(schar))
+				{
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+				}
+				else
+				{
+					// process the number
+					arg.push_back(Number(sbuffer[sbuffer.size()-1]));
+					// clean up
+					sbuffer.pop_back();
+					processing.pop();
+				}
+				break;
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessGroupRepeat()
+		{
+			switch(processing.top().phase)
+			{
+			case 0:
+				// first load the number
+				processing.top().phase++;
+				processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+				break;
+			case 1:
+				// check if there's ) character, which terminates repeat statement
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+
+				case ')':
+					processing.pop(); // return to the previous
+					LoadChar();
+					break;
+
+				// syntax error
+				default:
+					throw Exception("Unexpected symbol. Right parenthesis ')' expected.");
+				} // END switch(schar)
+				break;
+			} // END switch(processing.top().phase)
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessSymbol()
+		{
+			char numbuf[12]; // for converting number to a string
+			switch(processing.top().phase)
+			{
+			// initialize loading the symbol
+			case 0:
+				sbuffer.push_back(std::string());	// create new buffer for the symbol name
+				processing.top().phase++;		// start loading the symbol name
+				// break is omitted deliberately
+			// load symbol name
+			case 1:
+				if(std::isalpha(schar) || std::isdigit(schar) || schar == '_')
+				{
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar();
+				}
+				else
+					processing.top().phase++;
+				break;
+			// determine what to do with the name
+			case 2:
+				switch(schar)
+				{
+				// skip all spaces
+				case ' ':
+					LoadChar();
+					break;
+				// symbol definition
+				case '{':
+					processing.pop();	// this function's work is done and won't be called after symbol definition function is processed
+					processing.push(ProcessingPhase(&AttoASM::ProcessSymbolDef));
+					break;
+				// label definition
+				case ':':
+					LoadChar(); // remove ':' from the source
+					// create symbol with corresponding address
+					_itoa_s(trg->GetAddress(), numbuf, 12, 10);
+					SetSymbol(&sbuffer[sbuffer.size()-1], &std::string(numbuf));
+					// cleanup
+					sbuffer.pop_back();
+					processing.pop();
+					break;
+
+				// anything else is symbol usage - symbol value is pushed into the source
+				default:
+					// detect special symbols (includes)
+					if(sbuffer[sbuffer.size()-1] == "include" || sbuffer[sbuffer.size()-1] == "binclude")
+					{
+						processing.pop();	// this function won't need to be executed after include ones are finished
+						processing.push(ProcessingPhase(&AttoASM::ProcessInclude));
+						if(sbuffer[sbuffer.size()-1][0] == 'b')
+							arg.push_back(1);	// determines that binary include will be created							
+						else
+							arg.push_back(0);	// text include will be created
+
+						//cleanup
+						sbuffer.pop_back(); // the symbol name isn't needed anymore
+						break;
+					}
+
+					// the last character loaded needs to be preserved and read after the symbol
+					src->Push(new SourceChar(schar));
+					// push the value of the symbol onto the source
+					src->Push(new SourceString(GetSymbol(&sbuffer[sbuffer.size()-1])));
+					LoadChar(); // load next character (to get rid of previous schar, which is preserved using SourceChar)
+					// cleanup
+					sbuffer.pop_back();
+					processing.pop();
+				}
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessComment()
+		{
+			switch(processing.top().phase)
+			{
+			// determine type of the comment
+			case 0:
+				LoadChar();
+				switch(schar)
+				{
+				// single line
+				case '/':
+					processing.top().phase = 1;	// second phase handles single line comment
+					break;
+				// multi line
+				case '*':
+					processing.top().phase = 2;	// third phase handles multiline comment
+					break;
+				// syntax error
+				default:
+					throw Exception("Unexpected symbol, '/' or '*' expected.");
+				}
+				break;
+			// handle single line comment
+			case 1:
+				LoadChar();
+				if(schar == '\n' || schar == '\r' || schar == '\f' || schar == '\t')
+					processing.pop();
+				break;
+			// handle multiline comment
+			case 2:
+				if(LoadChar() == '*')
+					processing.top().phase = 3; // fourth phase detects end of the multiline comment
+				break;
+
+			case 3:
+				if(LoadChar() == '/')
+				{
+					processing.pop();
+					LoadChar();	// remove the '/' from the source
+				}
+				else
+					processing.top().phase = 2; // if it's false alarm, move back
+				break;
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessNumToIns()
+		{
+			switch(processing.top().phase)
+			{
+			// load the number to convert
+			case 0:
+				LoadChar();	// load first number
+				processing.top().phase++;	// ensure that next phase will be executed after expression is evaluated
+				processing.push(ProcessingPhase(&AttoASM::ProcessExpression));
+				break;
+			// check if number of bits to convert is specified
+			case 1:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				// number of bits to covert are specified
+				case ',':
+					LoadChar(); // load first digit
+					processing.top().phase++; // next phase must be executed after number is loaded
+					processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+					break;
+				// only the value to convert is specified
+				case ']':
+					processing.top().phase = 3;	// move to the last phase
+					// default values
+					arg.push_back(32);	// 32 bits to convert
+					arg.push_back(0);	// 0 bits to skip
+					break;
+				default:
+					throw Exception("Unexpected symbol, ']' or ',' expected.");
+				}
+				break;
+			// check if number of bits to skip is specified
+			case 2:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				// number of bits to skip are specified
+				case ',':
+					LoadChar(); // load first digit
+					processing.top().phase++; // next phase must be executed after number is loaded
+					processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+					break;
+				// only the value and number of how many to convert is specified
+				case ']':
+					processing.top().phase = 3;	// move to the last phase
+					// default values
+					arg.push_back(0);	// 0 bits to skip
+					break;
+				default:
+					throw Exception("Unexpected symbol, ']' or ',' expected.");
+				}
+				break;
+
+			/* process loaded values and create attoinstructions
+				arg-1: bits to skip
+				arg-2: bits to convert
+				arg-3: value to convert		*/
+			case 3:
+				// because conversion is from left to right, values needs to be adjusted
+				unsigned data = arg[arg.size()-3],
+					bits = arg[arg.size()-2],
+					skip = 32-arg[arg.size()-1]-arg[arg.size()-2];
+
+				if(skip+bits > 32)
+					throw Exception("Illegal values: can process maximum of 32 bits (skipped+processed <= 32).");
+
+				sbuffer.push_back(std::string());	// for instructions
+				// skip bits
+				data <<= skip;
+				// create instructions
+				while(bits-- > 0)
+				{
+					if(data & 0x80000000)
+						sbuffer[sbuffer.size()-1] += '1';
+					else
+						sbuffer[sbuffer.size()-1] += '0';
+					data <<= 1;
+				}
+				sbuffer[sbuffer.size()-1] += ' ';	// end the statment
+				// push the instructions onto the sources stack
+				src->Push(new SourceString(new std::string(sbuffer[sbuffer.size()-1]), true));
+				LoadChar();	// load the first one
+
+				// cleanup
+				sbuffer.pop_back();
+				arg.pop_back();	// skip
+				arg.pop_back();	// bits
+				arg.pop_back();	// data
+				processing.pop();
+				break;
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessHexDataChunk()
+		{
+			switch(processing.top().phase)
+			{
+			// initialize
+			case 0:
+				sbuffer.push_back(std::string());	// create buffer for storing hexadecimals
+				sbuffer[sbuffer.size()-1] = '0';	// always put zero in front, because the number will be hexadecimal
+				processing.top().phase++; // move to the next phase where characters are loaded
+				// break is omitted deliberately
+			case 1:
+				LoadChar();
+				if(std::isdigit(schar) || std::isalpha(schar))
+				{
+					sbuffer[sbuffer.size()-1] += schar;
+					// if buffer is filled enough, write data
+					if(sbuffer[sbuffer.size()-1].length() == 3)
+					{
+						// add h at the end, because the number is hexadecimal
+						sbuffer[sbuffer.size()-1] += 'h';
+						// write data
+						try {
+							trg->Write((byte)Number(sbuffer[sbuffer.size()-1]));
+						} catch(Exception e)
+						{ throw Exception("Illegal symbol in hexadecimal data chunk."); }
+						// clear buffer for next round
+						sbuffer[sbuffer.size()-1] = '0';
+					}
+				}
+				else
+				{
+					// if one nibble is missing, push it to the source, so it's processed in next round
+					if(sbuffer[sbuffer.size()-1].length() == 2)
+					{
+						src->Push(new SourceChar(schar)); // preserve already read character
+						src->Push(new SourceChar('0'));
+					}
+					else
+					{
+						// it's finished, clean up
+						sbuffer.pop_back();
+						processing.pop();
+					}
+				}
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessStrDataChunk()
+		{
+			switch(processing.top().phase)
+			{
+			// normal processing
+			case 0:
+				LoadChar(true);
+				// end
+				if(schar == '"')
+				{
+					processing.pop();
+					LoadChar();
+				} else if(schar == '\\') // escaping
+					processing.top().phase = 1; // move to the second phase, which determines escape character
+				else
+					trg->Write(schar);	// write character as is
+				break;
+
+			// escape characters
+			case 1:
+				switch(LoadChar(true))
+				{
+				case 'n':
+					trg->Write('\n');
+					break;
+				case '"':
+					trg->Write('"');
+					break;
+				case 't':
+					trg->Write('\t');
+					break;
+				case '0':
+					trg->Write(0);
+					break;
+				case '\\':
+					trg->Write('\\');
+					break;
+				case 'f':
+					trg->Write('\f');
+					break;
+				case 'r':
+					trg->Write('\r');
+					break;
+				case 'b':
+					trg->Write('\b');
+					break;
+				default:
+					throw Exception("Unknown escape sequence.");
+				}
+				// move to the previous phase
+				processing.top().phase = 0;
+				break;
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessOrg()
+		{
+			switch(processing.top().phase)
+			{
+			case 0:
+				LoadChar();	// get rid of the '<'
+				processing.top().phase++; // move to the next phase (will be executed after number is read)
+				// load the number first
+				processing.push(ProcessingPhase(&AttoASM::ProcessNumber));
+				break;
+			// detect end of the organization statement and change it
+			case 1:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				// End of the statement
+				case '>':
+					// if the address is larger than current one, appropriate number of zeroes must be written
+					if(arg[arg.size()-1] > trg->GetAddress())
+					{
+						for(int i = 0; i < 100000 && (arg[arg.size()-1] > trg->GetAddress()); i++)
+							trg->Write((char)0);
+						break;
+					}
+
+					// set the address - number loaded in the first phase
+					trg->SetAddress(arg[arg.size()-1]);
+
+					// cleanup
+					arg.pop_back();
+					processing.pop();
+					LoadChar(); // get rid of the '>'
+					break;
+
+				// syntax error
+				default:
+					throw Exception("Unexpected symbol, '>' expected.");
+				}
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessSymbolDef()
+		{
+			switch(processing.top().phase)
+			{
+			// initialize
+			case 0:
+				sbuffer.push_back(std::string());	// sbuffer for the value
+				processing.top().phase++;	// next phase which loads the symbol value
+				LoadChar(true); // load the first character of the symbol definition
+				// break is omitted deliberately - process first symbol after initialization
+			// load the symbols as they are
+			case 1:
+				if(schar == '{')
+					throw Exception("Cannot define symbol within symbol.");
+
+				if(schar != '}')
+				{
+					// load the character
+					sbuffer[sbuffer.size()-1] += schar;
+					LoadChar(true);
+				}
+				else
+				{
+					// whole value is loaded, create symbol
+					SetSymbol(&sbuffer[sbuffer.size()-2], &sbuffer[sbuffer.size()-1]);
+					// cleanup
+					LoadChar(); // remove the '}'
+					sbuffer.pop_back();	// value
+					sbuffer.pop_back();	// name
+					processing.pop();	// return to previous
+				}
+				break;
+			}
+		}
+
+		// -------------------------------------
+		void AttoASM::ProcessInclude()
+		{
+			switch(processing.top().phase)
+			{
+			// initialize
+			case 0:
+				sbuffer.push_back(std::string()); // prepare sbuffer for loading filename
+				processing.top().phase++;
+				// break omitted deliberately
+			case 1:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				case '(':
+					LoadChar();
+					processing.top().phase++;
+					break;
+				default:
+					throw Exception("Unexpected symbol in include statement, '(' expected.");
+				}
+				break;
+			case 2:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				case '"':
+					LoadChar(true);
+					processing.top().phase++;
+					break;
+				default:
+					throw Exception("Unexpected symbol in include statement, '\"' expected.");
+				}
+				break;
+			// load the filename
+			case 3:
+				if(schar != '"')
+					sbuffer[sbuffer.size()-1] += schar;
+				else
+					processing.top().phase++;
+				LoadChar(true);
+				break;
+			// check for proper ending
+			case 4:
+				switch(schar)
+				{
+				case ' ':
+					LoadChar();
+					break;
+				case ')':
+					if(arg[arg.size()-1])
+					{
+						// binary include
+						// include file as usuall, but processing is done in sixth phase
+						src->Push(new SourceFile(sbuffer[sbuffer.size()-1].c_str()));
+						// store how many sources are there, so end of the binary source can be detected
+						arg[arg.size()-1] = src->Sources();
+
+						sbuffer.pop_back();	// filename isn't needed anymore
+						processing.top().phase++;
+					}
+					else
+					{
+						// text include
+						src->Push(new SourceChar(' '));	// always add space for safety
+						src->Push(new SourceFile(sbuffer[sbuffer.size()-1].c_str()));
+						LoadChar();
+
+						// cleanup
+						processing.pop();
+						sbuffer.pop_back();
+						arg.pop_back();
+					}
+					break;
+				default:
+					throw Exception("Unexpected symbol in include statement, ')' expected.");
+				} // END switch(schar)
+				break;
+			// Sixth phase - process binary include
+			case 5:
+				// write raw data
+				LoadChar(true);
+				trg->Write(schar);
+
+				// detect end of the binary file
+				if(arg[arg.size()-1] != src->Sources())
+				{
+					// cleanup
+					arg.pop_back();
+					processing.pop();
+					LoadChar(); // load next character from normal source
+				}
+
+				break;
+			}
+		}
+	}
+}namespace attoWPU
+{
+	namespace assembler
+	{
+		char *attoASMHeader = "\
+			ADDR {0}\
+			CTRL {8}\
+			DATA {16}\
+			AJMP {48}\
+			STOP {0}\
+			\
+			/* aPC */\
+			APC_W {01H}\
+			APC_O {02H}\
+			APC_R {03H}\
+			\
+			/* Attocode memory /*\
+			AM_AD {01H}\
+			AM_OA {02H}\
+			AM_OD {03H}\
+			AM_WR {04H}\
+			AM_WN {05H}\
+			AM_WP {06H}\
+			AM_NX {07H}\
+			AM_PR {08H}\
+			\
+			/* TEMP register /*\
+			TMP_WRM {01H}\
+			TMP_ODM {02H}\
+			TMP_WR  {03H}\
+			TMP_OD  {04H}\
+			TMP_WM  {05H}\
+			TMP_OM  {06H}\
+			TMP_ME  {07H}\
+			TMP_MD  {08H}\
+			TMP_CLR {09H}\
+			TMP_FLL {0AH}\
+			\
+			/* Register memory */\
+			RG_AD  {01H}\
+			RG_AO  {02H}\
+			RG_ODM {03H}\
+			RG_WRM {04H}\
+			RG_WNM {05H}\
+			RG_WPM {06H}\
+			RG_NX  {07H}\
+			RG_PR  {08H}\
+			RG_WM  {09H}\
+			RG_OM  {0AH}\
+			RG_ME  {0BH}\
+			RG_MD  {0CH}\
+			RG_OD  {0DH}\
+			RG_WR  {0EH}\
+			RG_WN  {0FH}\
+			RG_WP  {10H}\
+			RG_RES {11H}\
+			\
+			/* ALU */\
+			ZERO {00H}\
+			ADD  {01H}\
+			SUB  {02H}\
+			MULL {03H}\
+			MULH {04H}\
+			DIV  {05H}\
+			REM  {06H}\
+			CR   {07H}\
+			BO   {08H}\
+			SADD {09H}\
+			SSUB {0AH}\
+			SMULL{0BH}\
+			SMULH{0CH}\
+			SDIV {0DH}\
+			SREM {0EH}\
+			SCR  {0FH}\
+			SBO  {10H}\
+			ANDB {11H}\
+			ORB  {12H}\
+			NOTB {13H}\
+			XORB {14H}\
+			RL   {15H}\
+			RR   {16H}\
+			ANDL {17H}\
+			ORL  {18H}\
+			NOTL {19H}\
+			XORL {1AH}\
+			SL   {1BH}\
+			SR   {1CH}\
+			NAND {1DH}\
+			NOR  {1EH}\
+			BOOL {1FH}\
+			MAX  {20H}\
+			MAXN {21H}\
+			MIN  {22H}\
+			MINN {23H}\
+			EQL  {24H}\
+			ZSET {25H}\
+			NZSET{26H}\
+			\
+			/* OUT register */\
+			OUT_D {01H}\
+			\
+			/* FPU */\
+			FADD  {01H}\
+			FSUB  {02H}\
+			FMUL  {03H}\
+			FDIV  {04H}\
+			FSIN  {05H}\
+			FTAN  {06H}\
+			FEXP  {07H}\
+			FSQRT {08H}\
+			FLOG2 {09H}\
+			FLOG10{0AH}\
+			FLN   {0BH}\
+			FISINF{0CH}\
+			FTOINT{0DH}\
+			FTOFLT{0EH}\
+			FMAX  {0FH}\
+			FMAXN {10H}\
+			FMIN  {11H}\
+			FMINN {12H}\
+			FABS  {13H}\
+			FPOW  {14H}\
+			\
+			/* Memory controller */\
+			M_WRL {01H}\
+			M_OAL {02H}\
+			M_OD  {03H}\
+			M_WR  {04H}\
+			M_WN  {05H}\
+			M_WP  {06H}\
+			M_NX  {07H}\
+			M_PR  {08H}\
+			M_WRH {09H}\
+			M_OAH {0AH}\
+			M_SZ  {0BH}\
+			M_CL  {0CH}\
+			M_32  {0DH}\
+			M_16  {0EH}\
+			M_8   {0FH}\
+			M_4   {10H}\
+			M_OCL {11H}\
+			\
+			/* Small queue */\
+			SQ_AD {01H}\
+			SQ_OA {02H}\
+			SQ_ODM{03H}\
+			SQ_WRM{04H}\
+			SQ_NX {05H}\
+			SQ_PR {06H}\
+			SQ_OD {07H}\
+			SQ_WR {08H}\
+			SQ_ME {09H}\
+			SQ_MD {0AH}\
+			SQ_O  {0BH}\
+			SQ_I  {0CH}\
+			SQ_CD {0DH}\
+			SQ_FL {0EH}\
+			SQ_R  {0FH}\
+			SQ_S  {10H}\
+			\
+			/* LED control */\
+			LED_R0 {00H}\
+			LED_R1 {01H}\
+			LED_R2 {02H}\
+			LED_R3 {03H}\
+			\
+			/* Text display controller */\
+			TX_ADR {01H}\
+			TX_WR  {02H}\
+			TX_WN  {03H}\
+			TX_NX  {04H}\
+			TX_PR  {05H}\
+			TX_OA  {06H}\
+			TX_OD  {07H}\
+			TX_R   {08H}\
+			\
+			/* LCD Display controller */\
+			LCD_AD {01H}\
+			LCD_WR {02H}\
+			LCD_WN {03H}\
+			LCD_NX {04H}\
+			LCD_PR {05H}\
+			LCD_AO {06H}\
+			LCD_DO {07H}\
+			LCD_R  {08H}\
+			\
+			/* Input controller */\
+			IN_DO {01H}\
+			IN_R0 {02H}\
+			IN_R1 {03H}\
+			IN_R2 {04H}\
+			IN_R3 {05H}\
+			IN_RN {06H}\
+			IN_SN {07H}\
+			IN_RK {08H}\
+			IN_SK {09H}\
+			\
+			/* Timer controller */\
+			TI_DO  {01H}\
+			TI_TR0 {02H}\
+			TI_TR1 {03H}\
+			TI_TR2 {04H}\
+			TI_TR3 {05H}\
+			TI_TS0 {06H}\
+			TI_TS1 {07H}\
+			TI_TS2 {08H}\
+			TI_TS3 {09H}\
+			TI_TF0 {0AH}\
+			TI_TF1 {0BH}\
+			TI_TF2 {0CH}\
+			TI_TF3 {0DH}\
+			TI_AF0 {0EH}\
+			TI_AF1 {0FH}\
+			TI_AF2 {10H}\
+			TI_AF3 {11H}\
+			TI_OC0 {12H}\
+			TI_OC1 {13H}\
+			TI_OC2 {14H}\
+			TI_OC3 {15H}\
+			TI_OV0 {16H}\
+			TI_OV1 {17H}\
+			TI_OV2 {18H}\
+			TI_OV3 {19H}\
+			TI_ORT {1AH}\
+			\
+			/* END */";
+	}
+}
+	#include "AttocodeWrite.h"
+#include "Exception.h"
+#include <string>
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		AttocodeWrite::AttocodeWrite()
+		{
+			address = topaddress = size = 0;
+		}
+
+		int AttocodeWrite::GetSize()
+		{
+			return size;
+		}
+
+		byte AttocodeWrite::Opcode(AttoInstruction i, int bit)
+		{
+			if(bit > 63 || bit < 0)
+			{
+				std::string msg = "Can't create opcode for bit ";
+				msg += bit;
+				throw Exception(msg.c_str(), true);
+			}
+
+			return (i << 6) | bit;	// create the attoinstruction opcode
+		}
+
+		void AttocodeWrite::Write(byte data)
+		{
+			if(address >= size)
+				throw Exception("Trying to write to a full attocode storage memory.", true);
+
+			__write(data);
+			if(address++ == topaddress)
+				topaddress++;
+		}
+
+
+		void AttocodeWrite::Write(attoWPU::assembler::AttoInstruction i, int bit)
+		{
+			Write(Opcode(i, bit));
+		}
+
+		void AttocodeWrite::SetAddress(int addr)
+		{
+			if((addr >= size) | (addr < 0) | (addr > address))
+				throw Exception("Trying to address invalid location in the attocodo storage memory.", true);
+
+			__address(addr);
+		}
+	}
+}#include "AttocodeWriteMem.h"
+#include <fstream>
+#include "Exception.h"
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		void AttocodeWriteMem::__write(byte data)
+		{
+			*(mem+address) = data;
+		}
+
+		void AttocodeWriteMem::__address(int addr)
+		{
+			address = addr;
+		}
+
+		AttocodeWriteMem::AttocodeWriteMem(int _size)
+		{
+			size = _size;
+			mem = new byte[size];
+			free_mem = true;
+		}
+
+		AttocodeWriteMem::AttocodeWriteMem(int _size, byte *memory)
+		{
+			size = _size;
+			mem = memory;
+			free_mem = false;
+		}
+
+		AttocodeWriteMem::~AttocodeWriteMem()
+		{
+			if(free_mem)
+				delete [] mem;
+		}
+
+		byte *AttocodeWriteMem::RetrieveData()
+		{
+			free_mem = false;
+			return mem;
+		}
+
+		void AttocodeWriteMem::SaveToFile(char *filename)
+		{
+			std::ofstream file = std::ofstream(filename, std::ios::out | std::ios::binary);
+			if(!file)
+				throw Exception("Cannot write to a disk.");
+
+			file.write((char *)mem, topaddress);
+			file.close();
+		}
+	}
+}#include <iostream>
+#include "Exception.h"
+#include "Source.h"
+#include "SourceFile.h"
+#include "SourceString.h"
+#include "AttocodeWriteMem.h"
+#include "Attoasm.h"
+#include <fstream>
+#include <string>
+using namespace std;
+
+using namespace attoWPU::assembler;
+
+void main(int argc, char *argv[])
+{
+	cout << "attoAssembler 0.1 alpha, written by Tomas \"Frooxius\" Mariancik" << endl;
+	cout << "Please report any errors to tomas.mariancik@gmail.com (include the source)" << endl;
+	cout << "------------------------------------" << endl;
+	cout << "Attoassembling...";
+	try{
+		if(argc == 1)
+			throw Exception("No input file.");
+		AttocodeWriteMem mem = AttocodeWriteMem(16*1024*1024);
+		AttoASM a = AttoASM(new SourceFile(argv[1]), &mem);
+		while(!a.Assembly(100000))
+			cout << '.';
+		mem.SaveToFile("output.hex");
+		cout << " Done, saved as output.hex";
+	} catch(Exception e)
+	{
+		cout << e.GetMessage();
+	}
+	catch(...)
+	{
+		cout << "Unexpected error.";
+	}
+}#include "Source.h"
+#include "Exception.h"
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		Source::Source()
+		{
+			endchar = false;
+		}
+
+		Source::Source(SourceRead *src)
+		{
+			sources.push(src);
+			endchar = false;
+		}
+
+		void Source::Push(SourceRead *src)
+		{
+			sources.push(src);
+			endchar = false;	// reset end char when new source is pushed
+		}
+
+		char Source::Read()
+		{
+			if(Empty() && endchar)
+				throw Exception("Trying to read from an empty Source.", true);
+			else if(Empty())	// send endchar
+			{
+				endchar = true;
+				return '\n';
+			}
+
+			char ch = sources.top()->Read();	// read character
+			if(sources.top()->Empty())			// if this caused the source read to be empty, dispose of it
+			{
+				delete sources.top();
+				sources.pop();
+			}
+			return ch;
+		}
+
+		char Source::__readTo(char *delim)
+		{
+			// if zero is returned, it automatically terminates the string
+			if(Empty())
+				return 0;
+			char ch = Read();
+
+			if(!strchr(delim, ch))	// if the character is not one of the delimiting ones, return it, otherwise zero
+				return ch;
+			return 0;
+		}
+		
+		void Source::ReadTo(char *buf, char *delim, int max)
+		{
+			while(--max)
+			{
+				*buf = __readTo(delim);
+				if(!(*(buf++)))		// if it's a terminating zero, return
+					return;
+			}
+			*buf = 0;	// if no delimiter is found, add zero at the end automatically
+		}
+
+		void Source::ReadTo(std::string *buf, char *delim)
+		{
+			char ch;
+			while(ch = __readTo(delim))
+				*buf += ch;
+		}
+
+		bool Source::Empty()
+		{
+			return sources.empty();
+		}
+
+
+	}
+}#include "SourceChar.h"
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		SourceChar::SourceChar(char ch)
+		{
+			_ch = ch;
+			empty = false;
+		}
+
+		char SourceChar::__read()
+		{
+			empty = true;
+			return _ch;
+		}
+
+		bool SourceChar::Empty()
+		{
+			return empty;
+		}
+	}
+}#include "SourceFile.h"
+#include "Exception.h"
+#include <cstring>
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		SourceFile::SourceFile(const char *filename)
+		{
+			// Load file, throw exception if it fails
+			file = new std::ifstream(filename, std::ios::in | std::ios::binary);
+
+			if(!*file)
+			{
+				char msg[300] = "Could not load ";
+				strcat_s<300>(msg, filename);
+				throw Exception(msg);
+			}
+
+			file->get(nextch);
+		}
+
+		SourceFile::~SourceFile()
+		{
+			file->close();
+			delete file;
+		}
+
+		char SourceFile::__read()
+		{
+			char ch = nextch;
+			file->get(nextch);
+			return ch;
+		}
+
+		bool SourceFile::Empty()
+		{
+			return file->eof();
+		}
+	}
+}#include "SourceRead.h"
+#include "Exception.h"
+#include <cstring>
+using namespace std;
+
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		char SourceRead::Read()
+		{
+			if(Empty())
+				throw Exception("Trying to read from empty SourceRead.", true);
+			return __read();
+		}
+	}
+}#include "SourceString.h"
+
+namespace attoWPU
+{
+	namespace assembler
+	{
+		SourceString::SourceString(char *str)
+		{
+			cstring = true;
+			cstr = str;
+			_free = 0;
+		}
+
+		SourceString::SourceString(std::string *str, bool free)
+		{
+			cstring = false;
+			stlstr = str->begin();
+			stlend = str->end();
+			if(free)
+				_free = str;
+			else
+				_free = 0;
+		}
+
+		char SourceString::__read()
+		{
+			if(cstring)
+				return *(cstr++);
+			return *(stlstr++);
+		}
+
+		bool SourceString::Empty()
+		{
+			if(cstring)
+				return *cstr == 0;
+			return stlstr == stlend;
+		}
+
+		SourceString::~SourceString()
+		{
+			if(_free)
+				delete _free;			
+		}
+	}
+}

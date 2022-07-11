@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="SimulatorCore">
+      <UniqueIdentifier>{4591453d-29d6-4c31-be9f-d939c4a91b29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SimulatorCore\Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="SimulatorCore\Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Units">
+      <UniqueIdentifier>{afa376f3-49ed-4ab7-8194-e24cd945d51b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Units\Header files">
+      <UniqueIdentifier>{ad6bcf9d-0a8c-40b7-9b2c-1b915c74a11f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Units\Source files">
+      <UniqueIdentifier>{6b1f4057-9a0b-46f9-afb0-129f9d613cfd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AttoWPU.h">
+      <Filter>SimulatorCore\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Unit.h">
+      <Filter>SimulatorCore\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Units.h">
+      <Filter>Units</Filter>
+    </ClInclude>
+    <ClInclude Include="00_aPC.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="01_AttocodeMemory.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="02_TEMP.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="03_RegisterMem.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="04_ALU.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="05_OUT.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="06_FPU.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="09_SmallQueue.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="0A_LED.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="0B_Text.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="0C_LCD.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="0D_InputController.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="0F_Speaker.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="S0_aPCwrite.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="XX_MemoryController.h">
+      <Filter>Units\Header files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AttoWPU.cpp">
+      <Filter>SimulatorCore\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Unit.cpp">
+      <Filter>SimulatorCore\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="00_aPC.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="01_AttocodeMemory.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="02_TEMP.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="03_RegisterMem.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="04_ALU.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="05_OUT.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="06_FPU.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="09_SmallQueue.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="0A_LED.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="0B_Text.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="0C_LCD.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="0D_InputController.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="0F_Speaker.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="S0_aPCwrite.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="XX_MemoryController.cpp">
+      <Filter>Units\Source files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,32 @@
+DATA [0FFH]
+ADDR [02, 8]
+CTRL [03, 7]
+CTRL+7(2) !
+
+ADDR [04, 8]
+CTRL [01, 7]
+CTRL+7(2) !
+
+DATA [1]
+ADDR [02, 8]
+CTRL [03, 7]
+CTRL+7(2) !
+
+DATA 1(32)
+
+ADDR [05, 8]
+CTRL [1, 7]
+CTRL+7(2) !
+
+AJMP [LOOP, 15]
+
+LOOP:
+ADDR [0CH, 8]
+CTRL [03, 7]
+CTRL+7(518) !
+
+ADDR [04, 8]
+CTRL [15H, 7]
+CTRL+7(2) !
+
+AJMP+15(2) !

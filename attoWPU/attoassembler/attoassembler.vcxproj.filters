@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header files">
+      <UniqueIdentifier>{769b4584-c3c6-4a89-97e1-d881a9683940}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source files">
+      <UniqueIdentifier>{e67109a8-eebc-48c0-81bd-b9e6d6f307dc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AssemblyException.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Attoasm.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="AttoASMHeader.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="AttocodeWrite.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="AttocodeWriteMem.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Exception.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="InternalException.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageStrings.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceChar.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFile.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceRead.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceString.h">
+      <Filter>Header files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Attoasm.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="AttoASMHeader.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="AttocodeWrite.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="AttocodeWriteMem.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Exception.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="MessageStrings.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceChar.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFile.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceRead.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceString.cpp">
+      <Filter>Source files</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,5 @@
+ADDR [0FH, 8]
+AJMP [LOOP, 15]
+LOOP:
+CTRL+7(2) !
+AJMP+15(2) !
