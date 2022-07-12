@@ -20,3 +20,5 @@ This experimental big endian processing unit allows programmer to design process
 The base of the processor is the attocore. During each attocycle, this logical part will read current instruction from attocode memory, decode instruction and bit number from it and change value of specified bit accordingly. Then it will instruct atto Program Counter (aPC) to increment by one, thus, moving to the next attoinstruction. This simple basic process repeats until the processor is stopped.
 
 Programmer can create processor’s function by designing the program in the attocode program memory: by specifically adjusting values of individual wires of the buses, he can control other units in the processor to his needs, usually by creating attocode that will process actual program created in normal assembly language, stored in program+data memory: the attocode will decode instruction opcode (designed by programmer) from the program+data memory and then control processor’s units to execute appropriate function.
+
+Read full specification here: https://github.com/Frooxius/AttoWPU/blob/main/attoWPUspec.pdf
