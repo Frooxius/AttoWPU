@@ -1,0 +1,6 @@
+EXE { CTRL+7(2) ! } // symbol to execute the command
+ADDR 0(8)           // address aPC
+CTRL 0(6)01         // prepare command code to write new address to the aPC
+DATA+11 [Somelabel, 20]    //write the address of the label to the data bus
+Somelabel:
+EXE           // execute the command and thus cause jump back to Somelabel

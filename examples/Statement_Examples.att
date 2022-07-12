@@ -1,0 +1,6 @@
+CTRL+2 0001
+DATA 110-11001 // is same as:
+DATA 110 DATA+4 1101
+ADDR+4 !01
+DATA [15550]   // write number 15550 to the data bus
+ADDR [0CH,8,0]

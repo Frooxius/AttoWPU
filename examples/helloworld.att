@@ -1,4 +1,4 @@
-/* Hello World in AttoASM by Frooxius, slightly optimized, 5/20/2011, www.attowpu.solirax.org */
+/* Hello World in AttoASM by Frooxius, slightly optimized, 5/20/2011, https://patreon.com/frooxius */
 
 EXE { CTRL+7(2) ! }		// execute command
 

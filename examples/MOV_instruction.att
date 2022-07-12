@@ -1,0 +1,55 @@
+/*
+  Implementation of MOV mem32, mem32 instruction in the AttoASM
+  
+  This code is not fully optimized for sake of readibility, it
+  can be further optimized to execute faster and also be smaller
+  
+  Following code assumes, that programmer has already decoded
+  addresses of both memory locations and stored them in the
+  register memory unit on address 0x03 in registers he called
+  TMP0 and TMP1
+*/
+EXE { CTRL+7(2) ! } // execute the command - Symbol/Macro, equivalent to sequence of CTRL+7 1, CTRL+7 0
+
+CTRL 0(8)           // clear control bus from any previous codes codes
+ADDR 0(8)           // clear the address as well
+DATA 0(32)          // data as well 
+
+ADDR+4 0011         // address register memory
+DATA+27 0001        // move address of the TMP1 register the register memory on the data bus
+CTRL+6 1            // prepare command code to control bus, which will tell currently addressed device - spec. data memory to read value on data bus and store it in its own addressation register
+CTRL+7 1            // by activating most significant bit on the control bus, tell addressed device to read the instruction code on the control bus and thus address TMP1 register
+CTRL+7 0            // don't forget to set it back to zero afterwards
+DATA 1(32)          // set all wires of data bus to 1, so it won't interrupt data outputed by special memory
+CTRL+5 1            // (in combination with previous CTRL+6 1 forms code 11) prepare instruction code, which will tell special data memory to read value of addressed location and output it on the data bus
+CTRL+7 1            // activate control instruction (after this, value of TMP1 will be on the data bus)
+CTRL+7 0            // deactivate it again
+ADDR+4 0111         // address program/data memory
+CTRL+5 01           // prepare command code, which will tell program/data memory to read address from data bus and address appropriate cell (source location)
+EXE                 // macro for CTRL+7 1 CTRL+7 0, after this, source location is addressed in program/data memory
+CTRL+5 11           // prepare command code, which will tell program/data memory to ouput value at addressed cell to the data bus
+EXE                 // value of source address is now at data bus (however, still mixed with the address from TMP1)
+ADDR+4 0011         // address special data memory again
+CTRL+5 00           // erase previous control instruction, this forms zero instruction, which tells the special data memory to disconnect from data bus (high impedance mode) and thus stop disturbing the value on data bus from source location
+EXE
+ADDR+4 0010         // address standalone TEMP register
+CTRL+5 01           // prepare instruction code which will tell the TEMP register to store value on the data bus in itself
+EXE                 // TEMP now contains the source value
+ADDR+4 0011         // address register memory again
+DATA 0(30)10        // put address of TMP2 register in register memory on the data bus (TMP2 contains target location)
+CTRL+5 01           // prepare command code which will tell register memory to address location with address on the data  bus
+EXE
+CTRL+5 1            // (in combination with previous command code 1 forms code 11) prepare command code, which will tell special data memory to read value of addressed location and output it on the data bus
+EXE
+ADDR 0111           // address program/data memory
+CTRL+5 0            // (clear this bit, changing 11 to 01) prepare instruction code, which will tell program/data memory to read address from data bus and address appropriate cell (target location) and by changing the instruction code, this will also stop it outputing value of source address on the data bus
+EXE                 // target location is now addressed
+ADDR 0010           // address standalone TEMP again
+CTRL+5 10           // prepare instructoin code, which will instruct standalone TEMP to output its value (which is source value) on the data bus
+EXE
+ADDR 0011           // address register memory
+CTRL+6 0            // erase control instruction, to stop special data memory from outputting value on the data bus
+EXE                 // data bus now contains only the source value from TEMP
+ADDR 0111           // address program/data memory again
+CTRL+4 100          // prepare instruction code, which will tell program/data memory to read value from data bus and store it at addressed location
+EXE                 // target location now contains value of source location, MOV operation is complete (some cleanup may follow as well as jump to start decoding another instruction from program/data memory)
