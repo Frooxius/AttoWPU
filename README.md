@@ -1,7 +1,7 @@
 # AttoWPU
 This is an experimental processor architecture I developed back in 2010, with an extremelly minimalist approach to programming - flipping bits on its bus.
 
-I am publishing this repo as-is, with the code in its original state from back in 2010, mistakes, unfinished parts, code quality I'm no longer happy with and such, but if you want to poke around, hope you'll have fun with it!
+**WARNING:** I am publishing this repo as-is, with the code in its original state from back in 2010, mistakes, unfinished parts, code quality I'm no longer happy with and such, but if you want to poke around, hope you'll have fun with it!
 
 The repo contains a compiler/assembler and a GUI simulator (this one needs Qt).
 
